@@ -6,14 +6,23 @@ import urllib.parse
 # --- 1. הגדרות דף ---
 st.set_page_config(page_title="נדב רונן פיזיותרפיה", layout="wide")
 
-# הזרקת CSS ליישור לימין ומניעת חריגת תוכן (Overflow)
+# CSS ממוקד למניעת חריגות ושיפור נראות בטלפון
 st.markdown("""
     <style>
     .stApp { direction: rtl; text-align: right; }
     [data-testid="stSidebar"] { direction: rtl; }
     .stAlert { direction: rtl; text-align: right; }
-    /* מניעת גלילה אופקית מיותרת */
-    .main .block-container { overflow-x: hidden; }
+
+    /* מבטיח שהסליידרים והטקסט לא יחרגו מהמסגרת */
+    .stSlider, .stSelectbox, .stTextInput, .stNumberInput {
+        width: 100% !important;
+    }
+
+    /* מניעת גלילה אופקית של כל הדף */
+    html, body {
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -21,35 +30,24 @@ if 'exercise_cart' not in st.session_state:
     st.session_state.exercise_cart = {}
 
 
-# --- 2. טעינת נתונים חסינה ---
+# --- 2. טעינת נתונים ---
 @st.cache_data
 def load_data():
     base_path = os.path.dirname(os.path.abspath(__file__))
-    paths = [
-        os.path.join(base_path, "data", "exercises.csv"),
-        os.path.join(base_path, "exercises.csv")
-    ]
-
-    csv_path = None
-    for p in paths:
-        if os.path.exists(p):
-            csv_path = p
-            break
+    paths = [os.path.join(base_path, "data", "exercises.csv"), os.path.join(base_path, "exercises.csv")]
+    csv_path = next((p for p in paths if os.path.exists(p)), None)
 
     if not csv_path:
         st.error("קובץ הנתונים exercises.csv לא נמצא.")
         return None
 
-    encodings = ['utf-8-sig', 'windows-1255', 'utf-8']
-    for enc in encodings:
+    for enc in ['utf-8-sig', 'windows-1255', 'utf-8']:
         try:
             test_df = pd.read_csv(csv_path, encoding=enc, nrows=1)
             skip = 1 if test_df.columns.size == 1 and test_df.columns[0] == 'exercises' else 0
-
             data = pd.read_csv(csv_path, encoding=enc, skiprows=skip)
             data.columns = data.columns.str.strip()
-            data = data.fillna('')
-            return data
+            return data.fillna('')
         except:
             continue
     return None
@@ -74,18 +72,16 @@ else:
 
 
 def rtl_markdown(text, size="p"):
-    if size == "h3":
-        st.markdown(f'<div style="direction: rtl; text-align: right;"><h3>{text}</h3></div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div style="direction: rtl; text-align: right;">{text}</div>', unsafe_allow_html=True)
+    tag = "h3" if size == "h3" else "p"
+    st.markdown(f'<div style="direction: rtl; text-align: right;"><{tag}>{text}</{tag}></div>', unsafe_allow_html=True)
 
 
 # --- 3. סרגל צד ---
 with st.sidebar:
     st.markdown('<div style="direction: rtl; text-align: right;"><h1>נדב רונן</h1></div>', unsafe_allow_html=True)
     st.divider()
-
     rtl_markdown("סל תרגילים")
+
     if not st.session_state.exercise_cart:
         rtl_markdown("הסל ריק")
     else:
@@ -98,80 +94,68 @@ with st.sidebar:
                 st.rerun()
 
         st.divider()
-        # הודעת וואטסאפ נקייה ללא אימוג'ים
-        full_message = "תוכנית תרגול - נדב רונן פיזיותרפיה\n\n"
+        msg = "תוכנית תרגול - נדב רונן פיזיותרפיה\n\n"
         for ex in st.session_state.exercise_cart.values():
-            full_message += f"* {ex['name']}\n"
-            full_message += f"מינון: {ex['sets']} סטים, {ex['reps']} חזרות\n"
-            full_message += f"קושי נדרש (RPE): {ex['rpe']}/10\n"
-            full_message += f"רף כאב מותר (VAS): {ex['vas']}/10\n"
-            full_message += f"הנחיית ביצוע: {ex['status']}\n"
-            if ex['instructions']: full_message += f"הוראות: {ex['instructions']}\n"
-            if ex['link']: full_message += f"קישור: {ex['link']}\n"
-            full_message += "----------------\n"
-
-        wa_url = f"https://wa.me/?text={urllib.parse.quote(full_message)}"
-        st.link_button("שלח תוכנית בוואטסאפ", wa_url, use_container_width=True)
+            msg += f"* {ex['name']}\nמינון: {ex['sets']} סטים, {ex['reps']} חזרות\n"
+            msg += f"קושי (RPE): {ex['rpe']}/10, כאב (VAS): {ex['vas']}/10\n"
+            msg += f"הנחיה: {ex['status']}\n"
+            if ex['link']: msg += f"קישור: {ex['link']}\n"
+            msg += "----------------\n"
+        st.link_button("שלח תוכנית בוואטסאפ", f"https://wa.me/?text={urllib.parse.quote(msg)}",
+                       use_container_width=True)
 
     st.divider()
     rtl_markdown("### סינון")
-    search_query = st.text_input("חיפוש חופשי", "")
+    search_query = st.text_input("חיפושי חופשי", "")
     area_options = sorted(df[COL_AREA].unique()) if COL_AREA in df.columns else []
     selected_area = st.selectbox("אזור בגוף", ["הכל"] + area_options)
 
 # --- 4. תצוגה מרכזית ---
-st.markdown('<div style="direction: rtl; text-align: right;"><h1>מאגר תרגילים קליני</h1></div>', unsafe_allow_html=True)
+st.markdown('<div style="direction: rtl; text-align: right;"><h1>מאגר תרגילים</h1></div>', unsafe_allow_html=True)
 
-filtered_df = df.copy()
+f_df = df.copy()
 if search_query:
-    filtered_df = filtered_df[filtered_df[COL_NAME].astype(str).str.contains(search_query, case=False)]
+    f_df = f_df[f_df[COL_NAME].astype(str).str.contains(search_query, case=False)]
 if selected_area != "הכל":
-    filtered_df = filtered_df[filtered_df[COL_AREA] == selected_area]
+    f_df = f_df[f_df[COL_AREA] == selected_area]
 
-for index, row in filtered_df.iterrows():
+for index, row in f_df.iterrows():
     with st.container(border=True):
-        # כותרת והוראות (רוחב מלא)
+        # כותרת והוראות
         rtl_markdown(row[COL_NAME], size="h3")
         if row[COL_INST]:
             rtl_markdown(f"**הוראות:** {row[COL_INST]}")
         if row[COL_TIPS]:
             st.info(f"דגש קליני: {row[COL_TIPS]}")
 
-        st.write("---")
+        # תצוגה מדורגת (אחד מתחת לשני) למניעת חריגות בטלפון
+        if 'YouTube_Link' in row and row['YouTube_Link']:
+            st.video(row['YouTube_Link'])
 
-        # חלוקה לוידאו ומינונים (שיפור יחס רוחב למניעת חריגה)
-        col_video, col_inputs = st.columns([1.5, 1])
+        st.divider()
 
-        with col_video:
-            if 'YouTube_Link' in row and row['YouTube_Link']:
-                st.video(row['YouTube_Link'])
-            else:
-                st.caption("אין וידאו זמין לתרגיל זה")
-
-        with col_inputs:
-            st.write("**מינון והנחיות**")
+        # מינונים - עכשיו בפריסה רחבה ובטוחה
+        st.write("**מינון והנחיות**")
+        c1, c2 = st.columns(2)
+        with c1:
             s = st.number_input("סטים", 1, 10, 3, key=f"s_{index}")
+        with c2:
             r = st.text_input("חזרות", "10", key=f"r_{index}")
 
-            # שימוש ב-slider במקום select_slider כדי למנוע חריגה מהמסגרת
-            rpe = st.slider("קושי (RPE)", 1, 10, 5, key=f"rpe_{index}")
-            vas = st.slider("רף כאב (VAS)", 0, 10, 3, key=f"vas_{index}")
+        # סליידרים לכל רוחב המסך
+        rpe = st.slider("קושי (RPE)", 1, 10, 5, key=f"rpe_{index}")
+        vas = st.slider("רף כאב (VAS)", 0, 10, 3, key=f"vas_{index}")
 
-            status = st.selectbox(
-                "הנחיית המשכיות",
-                ["המשך כרגיל", "המשך בזהירות", "עצור אם הכאב עולה"],
-                key=f"status_{index}"
-            )
+        status = st.selectbox(
+            "הנחיית המשכיות",
+            ["המשך כרגיל", "המשך בזהירות", "עצור אם הכאב עולה"],
+            key=f"status_{index}"
+        )
 
-            if st.button("הוספה", key=f"btn_{index}", use_container_width=True):
-                st.session_state.exercise_cart[index] = {
-                    "name": row[COL_NAME],
-                    "sets": s,
-                    "reps": r,
-                    "rpe": rpe,
-                    "vas": vas,
-                    "status": status,
-                    "instructions": row[COL_INST],
-                    "link": row.get('YouTube_Link', '')
-                }
-                st.rerun()
+        if st.button("הוספה לסל", key=f"btn_{index}", use_container_width=True):
+            st.session_state.exercise_cart[index] = {
+                "name": row[COL_NAME], "sets": s, "reps": r, "rpe": rpe,
+                "vas": vas, "status": status, "instructions": row[COL_INST],
+                "link": row.get('YouTube_Link', '')
+            }
+            st.rerun()
