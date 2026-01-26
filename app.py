@@ -6,25 +6,25 @@ import urllib.parse
 # --- 1. הגדרות דף ---
 st.set_page_config(page_title="נדב רונן פיזיותרפיה", layout="wide")
 
-# הזרקת CSS ליישור לימין ותצוגה נקייה
+# הזרקת CSS ליישור לימין ומניעת חריגת תוכן (Overflow)
 st.markdown("""
     <style>
     .stApp { direction: rtl; text-align: right; }
     [data-testid="stSidebar"] { direction: rtl; }
     .stAlert { direction: rtl; text-align: right; }
+    /* מניעת גלילה אופקית מיותרת */
+    .main .block-container { overflow-x: hidden; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. ניהול הזיכרון (Session State) ---
 if 'exercise_cart' not in st.session_state:
     st.session_state.exercise_cart = {}
 
 
-# --- 3. טעינת נתונים חסינה ---
+# --- 2. טעינת נתונים חסינה ---
 @st.cache_data
 def load_data():
     base_path = os.path.dirname(os.path.abspath(__file__))
-    # מחפש את הקובץ גם בתוך תיקיית data וגם בתיקייה הראשית (למקרה של אי התאמה ב-GitHub)
     paths = [
         os.path.join(base_path, "data", "exercises.csv"),
         os.path.join(base_path, "exercises.csv")
@@ -43,7 +43,6 @@ def load_data():
     encodings = ['utf-8-sig', 'windows-1255', 'utf-8']
     for enc in encodings:
         try:
-            # בדיקה אם השורה הראשונה היא הכותרת המיותרת "exercises"
             test_df = pd.read_csv(csv_path, encoding=enc, nrows=1)
             skip = 1 if test_df.columns.size == 1 and test_df.columns[0] == 'exercises' else 0
 
@@ -59,7 +58,6 @@ def load_data():
 df = load_data()
 
 
-# פונקציית עזר למציאת עמודה (מונע KeyError)
 def find_col(df, options):
     for opt in options:
         if opt in df.columns: return opt
@@ -75,7 +73,6 @@ else:
     st.stop()
 
 
-# פונקציית עזר להצגת טקסט בעברית מיושר לימין
 def rtl_markdown(text, size="p"):
     if size == "h3":
         st.markdown(f'<div style="direction: rtl; text-align: right;"><h3>{text}</h3></div>', unsafe_allow_html=True)
@@ -83,7 +80,7 @@ def rtl_markdown(text, size="p"):
         st.markdown(f'<div style="direction: rtl; text-align: right;">{text}</div>', unsafe_allow_html=True)
 
 
-# --- 4. סרגל צד ---
+# --- 3. סרגל צד ---
 with st.sidebar:
     st.markdown('<div style="direction: rtl; text-align: right;"><h1>נדב רונן</h1></div>', unsafe_allow_html=True)
     st.divider()
@@ -101,7 +98,8 @@ with st.sidebar:
                 st.rerun()
 
         st.divider()
-        full_message = "*תוכנית תרגול - נדב רונן פיזיותרפיה*\n\n"
+        # הודעת וואטסאפ נקייה ללא אימוג'ים
+        full_message = "תוכנית תרגול - נדב רונן פיזיותרפיה\n\n"
         for ex in st.session_state.exercise_cart.values():
             full_message += f"* {ex['name']}\n"
             full_message += f"מינון: {ex['sets']} סטים, {ex['reps']} חזרות\n"
@@ -121,7 +119,7 @@ with st.sidebar:
     area_options = sorted(df[COL_AREA].unique()) if COL_AREA in df.columns else []
     selected_area = st.selectbox("אזור בגוף", ["הכל"] + area_options)
 
-# --- 5. תצוגה מרכזית ---
+# --- 4. תצוגה מרכזית ---
 st.markdown('<div style="direction: rtl; text-align: right;"><h1>מאגר תרגילים קליני</h1></div>', unsafe_allow_html=True)
 
 filtered_df = df.copy()
@@ -132,30 +130,33 @@ if selected_area != "הכל":
 
 for index, row in filtered_df.iterrows():
     with st.container(border=True):
-        col_content, col_input = st.columns([2.2, 1])
+        # כותרת והוראות (רוחב מלא)
+        rtl_markdown(row[COL_NAME], size="h3")
+        if row[COL_INST]:
+            rtl_markdown(f"**הוראות:** {row[COL_INST]}")
+        if row[COL_TIPS]:
+            st.info(f"דגש קליני: {row[COL_TIPS]}")
 
-        with col_content:
-            rtl_markdown(row[COL_NAME], size="h3")
+        st.write("---")
 
-            if row[COL_INST]:
-                rtl_markdown("**הוראות:**")
-                rtl_markdown(row[COL_INST])
+        # חלוקה לוידאו ומינונים (שיפור יחס רוחב למניעת חריגה)
+        col_video, col_inputs = st.columns([1.5, 1])
 
-            if row[COL_TIPS]:
-                st.info(f"דגש קליני: {row[COL_TIPS]}")
-
+        with col_video:
             if 'YouTube_Link' in row and row['YouTube_Link']:
-                st.write("---")
-                v_col, _ = st.columns([1.2, 1])
-                with v_col:
-                    st.video(row['YouTube_Link'])
+                st.video(row['YouTube_Link'])
+            else:
+                st.caption("אין וידאו זמין לתרגיל זה")
 
-        with col_input:
+        with col_inputs:
             st.write("**מינון והנחיות**")
             s = st.number_input("סטים", 1, 10, 3, key=f"s_{index}")
             r = st.text_input("חזרות", "10", key=f"r_{index}")
-            rpe = st.select_slider("קושי (RPE)", options=list(range(1, 11)), value=5, key=f"rpe_{index}")
-            vas = st.select_slider("רף כאב מותר (VAS)", options=list(range(11)), value=3, key=f"vas_{index}")
+
+            # שימוש ב-slider במקום select_slider כדי למנוע חריגה מהמסגרת
+            rpe = st.slider("קושי (RPE)", 1, 10, 5, key=f"rpe_{index}")
+            vas = st.slider("רף כאב (VAS)", 0, 10, 3, key=f"vas_{index}")
+
             status = st.selectbox(
                 "הנחיית המשכיות",
                 ["המשך כרגיל", "המשך בזהירות", "עצור אם הכאב עולה"],
