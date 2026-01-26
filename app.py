@@ -6,13 +6,12 @@ import urllib.parse
 # --- 1. הגדרות דף ---
 st.set_page_config(page_title="נדב רונן פיזיותרפיה", layout="wide")
 
-# הזרקת CSS בסיסי ליישור כללי של תיבות ה-Info לימין
+# הזרקת CSS ליישור לימין ותצוגה נקייה
 st.markdown("""
     <style>
-    .stAlert {
-        direction: rtl;
-        text-align: right;
-    }
+    .stApp { direction: rtl; text-align: right; }
+    [data-testid="stSidebar"] { direction: rtl; }
+    .stAlert { direction: rtl; text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -21,34 +20,59 @@ if 'exercise_cart' not in st.session_state:
     st.session_state.exercise_cart = {}
 
 
-# --- 3. טעינת נתונים ---
+# --- 3. טעינת נתונים חסינה ---
 @st.cache_data
 def load_data():
     base_path = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(base_path, "data", "exercises.csv")
-    if not os.path.exists(csv_path): return None
+    # מחפש את הקובץ גם בתוך תיקיית data וגם בתיקייה הראשית (למקרה של אי התאמה ב-GitHub)
+    paths = [
+        os.path.join(base_path, "data", "exercises.csv"),
+        os.path.join(base_path, "exercises.csv")
+    ]
+
+    csv_path = None
+    for p in paths:
+        if os.path.exists(p):
+            csv_path = p
+            break
+
+    if not csv_path:
+        st.error("קובץ הנתונים exercises.csv לא נמצא.")
+        return None
 
     encodings = ['utf-8-sig', 'windows-1255', 'utf-8']
-    data = None
     for enc in encodings:
         try:
-            data = pd.read_csv(csv_path, encoding=enc, skiprows=1)
-            break
+            # בדיקה אם השורה הראשונה היא הכותרת המיותרת "exercises"
+            test_df = pd.read_csv(csv_path, encoding=enc, nrows=1)
+            skip = 1 if test_df.columns.size == 1 and test_df.columns[0] == 'exercises' else 0
+
+            data = pd.read_csv(csv_path, encoding=enc, skiprows=skip)
+            data.columns = data.columns.str.strip()
+            data = data.fillna('')
+            return data
         except:
             continue
-    if data is None: return None
-    data.columns = data.columns.str.strip()
-    data = data.fillna('')
-    return data
+    return None
 
 
 df = load_data()
 
-# זיהוי עמודות
-COL_NAME = 'Exercise_Name_HE' if 'Exercise_Name_HE' in df.columns else 'Exercise_Name'
-COL_INST = 'Instructions_HE' if 'Instructions_HE' in df.columns else 'Instructions'
-COL_TIPS = 'Clinical_Tips_HE' if 'Clinical_Tips_HE' in df.columns else 'Clinical_Tips'
-COL_AREA = 'Body_Area_HE' if 'Body_Area_HE' in df.columns else 'Body_Area'
+
+# פונקציית עזר למציאת עמודה (מונע KeyError)
+def find_col(df, options):
+    for opt in options:
+        if opt in df.columns: return opt
+    return df.columns[0] if not df.empty else None
+
+
+if df is not None:
+    COL_NAME = find_col(df, ['Exercise_Name_HE', 'name_he', 'Exercise_Name'])
+    COL_INST = find_col(df, ['Instructions_HE', 'instructions_he', 'Instructions'])
+    COL_TIPS = find_col(df, ['Clinical_Tips_HE', 'clinical_tips_he', 'Clinical_Tips'])
+    COL_AREA = find_col(df, ['Body_Area_HE', 'body_area_he', 'Body_Area'])
+else:
+    st.stop()
 
 
 # פונקציית עזר להצגת טקסט בעברית מיושר לימין
@@ -120,7 +144,7 @@ for index, row in filtered_df.iterrows():
             if row[COL_TIPS]:
                 st.info(f"דגש קליני: {row[COL_TIPS]}")
 
-            if row['YouTube_Link']:
+            if 'YouTube_Link' in row and row['YouTube_Link']:
                 st.write("---")
                 v_col, _ = st.columns([1.2, 1])
                 with v_col:
@@ -131,11 +155,7 @@ for index, row in filtered_df.iterrows():
             s = st.number_input("סטים", 1, 10, 3, key=f"s_{index}")
             r = st.text_input("חזרות", "10", key=f"r_{index}")
             rpe = st.select_slider("קושי (RPE)", options=list(range(1, 11)), value=5, key=f"rpe_{index}")
-
-            # רובריקת VAS
             vas = st.select_slider("רף כאב מותר (VAS)", options=list(range(11)), value=3, key=f"vas_{index}")
-
-            # רובריקת עצור/המשך
             status = st.selectbox(
                 "הנחיית המשכיות",
                 ["המשך כרגיל", "המשך בזהירות", "עצור אם הכאב עולה"],
@@ -151,6 +171,6 @@ for index, row in filtered_df.iterrows():
                     "vas": vas,
                     "status": status,
                     "instructions": row[COL_INST],
-                    "link": row['YouTube_Link']
+                    "link": row.get('YouTube_Link', '')
                 }
                 st.rerun()
