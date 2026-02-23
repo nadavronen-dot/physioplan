@@ -179,9 +179,15 @@ div[data-testid="stSlider"] label {
     padding: 10px 16px;
     margin-bottom: 8px;
     border: 1px solid var(--border);
-    direction: ltr;
+    direction: center;
+    text-align: center;
+    font-weight: 700;;
+    color: #1a1a1a !important;
+    font-size: 0.95rem;
 }
 .cart-item strong { color: var(--green-dark); }
+.cart-item span, .cart-item br ~ * { color: #333 !important; }
+
 
 .wa-btn {
     display: block;
