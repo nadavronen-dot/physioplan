@@ -1,30 +1,45 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2867
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;\f1\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;\red36\green36\blue36;\red255\green255\blue255;}
-{\*\expandedcolortbl;;\cssrgb\c18824\c18824\c18824;\cssrgb\c100000\c100000\c100000;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
-\deftab720
-\pard\pardeftab720\partightenfactor0
+# CLAUDE.md — PhysioPlan Coding Conventions
 
-\f0\fs28 \cf2 \cb3 \expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 # CLAUDE.md - Coding Conventions\
-\
-## Project Structure\
-- `app.py`: Main entry point.\
-- `data/`: Contains `exercises.csv`.\
-- `utils/`: Helper functions.\
-- `requirements.txt`: Dependencies.\
-\
-## Coding Style\
-- **Python:** Follow PEP 8.\
-- **Streamlit:** Use `st.session_state` to keep selections between re-runs.\
-- **Data Handling:** Ensure column names match the CSV exactly (e.g., `Body_Area`, `YouTube_Link`).\
-- **Error Handling:** Handle case where CSV is missing or filters return empty results.\
-\
-## Commands\
-- Run: `streamlit run app.py`\
-- Install: `pip install -r requirements.txt`\
-\pard\pardeftab720\partightenfactor0
+## Project
+PhysioPlan — כלי HEP לפיזיותרפיסט. Streamlit + CSV. ללא DB, ללא login.
+Owner: נדב רונן | פיזיותרפיה וספורט
 
-\f1 \cf2 \
-}
+## Project Structure
+- `app.py` — Main entry point (single file)
+- `data/exercises.csv` — מקור הנתונים
+- `requirements.txt` — streamlit, pandas, openpyxl, deep-translator
+- `.claude/PRD.md` — מסמך דרישות מלא
+
+## Commands
+- Run: `streamlit run app.py`
+- Install: `pip install -r requirements.txt`
+- CSV translate: `python3 translate_csv.py`
+
+## Coding Rules
+- Python 3.13, PEP 8
+- Streamlit: `st.session_state` לשמירת בחירות בין re-runs
+- `@st.cache_data` על load_data()
+- Layout: `layout="centered"`, max-width 520px
+- RTL: כל ה-CSS ברמת html/body
+- LTR: class="en-text" / class="en-text-green" לטקסט אנגלי
+
+## Language Rules (חשוב!)
+| מיקום | שפה | יישור |
+|---|---|---|
+| ממשק כללי | עברית | RTL |
+| הוראות + טיפ קליני (אפליקציה) | אנגלית _EN | LTR |
+| הודעת וואטסאפ | עברית _HE, fallback → EN | RTL |
+
+## CSV Column Names (exact)
+Exercise_Name_EN, Exercise_Name_HE,
+Body_Area_EN, Body_Area_HE,
+Type_EN, Type_HE,
+Difficulty, Equipment_EN, Equipment_HE,
+Instructions_EN, Instructions_HE,
+Clinical_Tips_EN, Clinical_Tips_HE,
+YouTube_Link, Default_RPE
+
+## Error Handling
+- CSV לא נמצא → st.error() + st.stop()
+- סינון ריק → st.warning() + st.stop()
+- encoding fallback: utf-8-sig → utf-8 → windows-1255 → cp1255

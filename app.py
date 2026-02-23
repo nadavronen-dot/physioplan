@@ -1,79 +1,266 @@
 import streamlit as st
 import pandas as pd
 import os
+import base64
 import urllib.parse
 from datetime import date
 
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(page_title="נדב רונן פיזיותרפיה", layout="centered")
 
+# ── Logo helper ───────────────────────────────────────────────────────────────
+def get_logo_b64():
+    base = os.path.dirname(os.path.abspath(__file__))
+    for name in ["logo.jpg", "logo.png", "logo.jpeg"]:
+        path = os.path.join(base, name)
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+    return None
+
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    html, body, [class*="css"] {
-        direction: rtl;
-        text-align: right;
-        font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 16px;
-    }
-    .block-container { max-width: 520px !important; padding: 1.2rem 1rem !important; }
-    div[data-baseweb="select"] > div { direction: rtl; text-align: right; }
-    div[data-testid="stSlider"] { direction: ltr; }
-    .stButton > button {
-        width: 100%; font-size: 1rem; padding: 0.7rem;
-        border-radius: 10px; margin-top: 6px; font-weight: bold;
-    }
-    .ex-card {
-        background: #f0f6fb; border-right: 5px solid #2E86AB;
-        padding: 14px 16px; border-radius: 10px; margin: 8px 0; direction: rtl;
-    }
-    .cart-item {
-        background: #f8f9fa; border: 1px solid #dee2e6;
-        border-right: 4px solid #27AE60; padding: 10px 14px;
-        border-radius: 10px; margin: 6px 0; direction: rtl;
-        font-size: 0.92rem; line-height: 1.7;
-    }
-    .info-box {
-        padding: 12px 16px; border-radius: 10px; direction: rtl;
-        margin: 8px 0; color: white; font-size: 0.95rem; line-height: 1.6;
-    }
-    .load-box {
-        padding: 12px 8px; border-radius: 10px; direction: rtl;
-        text-align: center; margin: 4px 0; color: white;
-        font-weight: bold; font-size: 0.95rem; line-height: 1.5;
-    }
-    .divider { border: none; border-top: 1px solid #e0e0e0; margin: 18px 0; }
-    .tag {
-        display: inline-block; background: #e8f4f8; color: #2E86AB;
-        border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; margin-left: 4px;
-    }
-    .region-tag {
-        display: inline-block; background: #2E86AB; color: white;
-        border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; margin-left: 4px;
-    }
-    .main-header {
-        background: linear-gradient(135deg, #2E86AB, #1a5f7a);
-        color: white; padding: 16px 20px; border-radius: 12px;
-        direction: rtl; margin-bottom: 16px;
-    }
-    .en-text {
-        direction: ltr; text-align: left;
-        display: block; margin: 4px 0; color: #333; font-size: 0.93rem;
-    }
-    .en-text-green {
-        direction: ltr; text-align: left;
-        display: block; margin: 4px 0; color: #1a6b3a; font-size: 0.93rem;
-    }
+:root {
+    --green-dark:  #1a5c2e;
+    --green-mid:   #2d8a4e;
+    --green-light: #e8f5ec;
+    --green-wa:    #25D366;
+    --border:      #e0e0e0;
+}
+
+.stApp { background-color: #f4f6f4; }
+header[data-testid="stHeader"] { display: none !important; }
+
+.app-header {
+    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+    border-radius: 14px;
+    padding: 20px 28px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 4px 16px rgba(26,92,46,0.18);
+}
+.app-header img {
+    height: 72px;
+    width: 72px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: white;
+    padding: 5px;
+}
+.app-header-text { flex: 1; text-align: center; }
+.app-header-text h1 {
+    color: white;
+    font-size: 1.7rem;
+    font-weight: 800;
+    margin: 0 0 2px 0;
+}
+.app-header-text p {
+    color: rgba(255,255,255,0.85);
+    font-size: 0.95rem;
+    margin: 0;
+}
+.app-header-date {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
+    margin-top: 6px;
+}
+
+div[data-testid="stSelectbox"] label {
+    direction: rtl !important;
+    text-align: center !important;
+    color: var(--green-dark) !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    display: block;
+    width: 100%;
+}
+
+div[data-testid="stNumberInput"] label,
+div[data-testid="stSlider"] label {
+    direction: rtl !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    display: block;
+    width: 100%;
+}
+
+.section-title {
+    direction: rtl;
+    text-align: center;
+    color: var(--green-dark);
+    font-weight: 700;
+    font-size: 1rem;
+    margin: 18px 0 6px 0;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--green-light);
+}
+
+.ex-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 16px 20px;
+    border-left: 4px solid var(--green-mid);
+    margin: 14px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.ex-card h3 {
+    color: var(--green-dark);
+    font-size: 1.1rem;
+    margin: 0 0 10px 0;
+}
+
+.tag {
+    display: inline-block;
+    background: var(--green-dark);
+    color: white;
+    border-radius: 20px;
+    padding: 2px 11px;
+    font-size: 0.78rem;
+    margin: 2px 3px 2px 0;
+    font-weight: 600;
+}
+.tag-gray {
+    display: inline-block;
+    background: #6c757d;
+    color: white;
+    border-radius: 20px;
+    padding: 2px 11px;
+    font-size: 0.78rem;
+    margin: 2px 3px 2px 0;
+}
+.tag-outline {
+    display: inline-block;
+    border: 1.5px solid var(--green-mid);
+    color: var(--green-dark);
+    border-radius: 20px;
+    padding: 2px 11px;
+    font-size: 0.78rem;
+    margin: 2px 3px 2px 0;
+}
+
+.inst-box {
+    background: #f0f4ff;
+    border-left: 4px solid #4a6fa5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    direction: ltr;
+    text-align: left;
+}
+
+.tip-box {
+    background: var(--green-light);
+    border-left: 4px solid var(--green-mid);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    color: var(--green-dark);
+    font-size: 0.9rem;
+}
+
+.status-bar {
+    border-radius: 10px;
+    padding: 10px 16px;
+    direction: rtl;
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: white;
+}
+
+.cart-item {
+    background: white;
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    direction: ltr;
+}
+.cart-item strong { color: var(--green-dark); }
+
+.wa-btn {
+    display: block;
+    background: var(--green-wa);
+    color: white !important;
+    text-decoration: none !important;
+    border-radius: 24px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(37,211,102,0.35);
+    margin-top: 8px;
+}
+.wa-btn:hover { background: #1da851; }
+
+.stButton > button {
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+}
+
+hr { border-color: var(--border); margin: 18px 0; }
+/* ── Text input labels ── */
+div[data-testid="stTextInput"] label {
+    direction: rtl !important;
+    text-align: center !important;
+    color: #1a5c2e !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    display: block;
+    width: 100%;
+}
+
+/* ── Remove extra spacing after header ── */
+div[data-testid="stMarkdownContainer"] + div[data-testid="stVerticalBlock"] {
+    margin-top: 0 !important;
+}
+
+/* ── All input labels visible ── */
+.stTextInput label, .stSelectbox label,
+.stNumberInput label, .stSlider label {
+    color: #1a5c2e !important;
+    font-weight: 700 !important;
+    direction: rtl !important;
+    text-align: center !important;
+}
+/* ── Cursor pointer on selectbox ── */
+div[data-testid="stSelectbox"] > div,
+div[data-testid="stSelectbox"] > div > div,
+div[data-testid="stSelectbox"] input,
+div[data-testid="stSelectbox"] [role="listbox"],
+div[data-testid="stSelectbox"] [role="option"] {
+    cursor: pointer !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
+# ── Session state ─────────────────────────────────────────────────────────────
 if "exercise_cart" not in st.session_state:
     st.session_state.exercise_cart = {}
 
+# ── Helper functions ──────────────────────────────────────────────────────────
+def section_title(text):
+    st.markdown(f'<div class="section-title">{text}</div>', unsafe_allow_html=True)
+
 def rtl(text, tag="p", color="#111", size="1rem"):
     st.markdown(
-        f'<{tag} style="direction:rtl;text-align:right;color:{color};'
+        f'<{tag} style="direction:rtl;text-align:center;color:{color};'
         f'margin:4px 0;font-size:{size}">{text}</{tag}>',
         unsafe_allow_html=True
     )
+
+def safe(row, col, fallback=""):
+    if col in row.index:
+        val = str(row[col]).strip()
+        if val and val.lower() != "nan":
+            return val
+    return fallback
 
 def traffic_light(vas):
     if vas == 0:
@@ -84,38 +271,31 @@ def traffic_light(vas):
         return "#F39C12", "כתום - הפחת עצימות", "הפחת חזרות ב-50% ועבוד בטווח תנועה קטן יותר. אם הכאב לא פוחת תוך 24 שעות - צור קשר."
     return "#E74C3C", "אדום - עצור", "הפסק את התרגיל עכשיו. מנוחה מלאה. אם הכאב נמשך מעל שעה - פנה לטיפול."
 
-def load_label(load):
-    if load < 150:   return "#27AE60", "עומס נמוך - שיקום ראשוני"
-    if load < 300:   return "#F39C12", "עומס בינוני - שלב חיזוק"
-    if load < 450:   return "#E67E22", "עומס גבוה - וודא התאוששות"
+def load_label(au):
+    if au < 150:
+        return "#27AE60", "עומס נמוך - שיקום ראשוני"
+    if au < 300:
+        return "#F39C12", "עומס בינוני - שלב חיזוק"
+    if au < 450:
+        return "#E67E22", "עומס גבוה - וודא התאוששות"
     return "#E74C3C", "עומס גבוה מאוד - שקול הפחתה"
 
+# ── Data maps ─────────────────────────────────────────────────────────────────
 REGION_MAP = {
-    "knee":               "Lower Limb",
-    "hip":                "Lower Limb",
-    "ankle":              "Lower Limb",
-    "foot":               "Lower Limb",
-    "legs":               "Lower Limb",
-    "shoulder":           "Upper Limb",
-    "shoulder / scapula": "Upper Limb",
-    "shoulders":          "Upper Limb",
-    "elbow":              "Upper Limb",
-    "wrist":              "Upper Limb",
-    "hand":               "Upper Limb",
-    "lower back":         "Spine",
-    "thoracic":           "Spine",
-    "cervical":           "Spine",
-    "core":               "Core",
-    "shoulders , abs":    "Upper Limb / Core",
-    "shoulders / core":   "Upper Limb / Core",
+    "knee": "Lower Limb", "hip": "Lower Limb", "ankle": "Lower Limb",
+    "foot": "Lower Limb", "legs": "Lower Limb",
+    "shoulder": "Upper Limb", "shoulder / scapula": "Upper Limb",
+    "shoulders": "Upper Limb", "elbow": "Upper Limb",
+    "wrist": "Upper Limb", "hand": "Upper Limb",
+    "lower back": "Spine", "thoracic": "Spine", "cervical": "Spine",
+    "core": "Core",
+    "shoulders , abs": "Upper Limb / Core",
+    "shoulders / core": "Upper Limb / Core",
 }
-
 AREA_NORMALIZE = {
-    "shoulders":          "Shoulder",
-    "shoulder / scapula": "Shoulder",
-    "shoulders , abs":    "Shoulder",
-    "shoulders / core":   "Shoulder",
-    "legs":               "Knee",
+    "shoulders": "Shoulder", "shoulder / scapula": "Shoulder",
+    "shoulders , abs": "Shoulder", "shoulders / core": "Shoulder",
+    "legs": "Knee",
 }
 
 def get_region(area):
@@ -124,15 +304,16 @@ def get_region(area):
 def normalize_area(area):
     return AREA_NORMALIZE.get(str(area).strip().lower(), str(area).strip())
 
+# ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
     base = os.path.dirname(os.path.abspath(__file__))
-    search_paths = [
+    paths = [
         os.path.join(base, "data", "exercises.csv"),
         os.path.join(base, "exercises.csv"),
         os.path.join(base, "data", "Exercises.csv"),
     ]
-    for path in search_paths:
+    for path in paths:
         if not os.path.exists(path):
             continue
         for enc in ["utf-8-sig", "utf-8", "windows-1255", "cp1255"]:
@@ -157,232 +338,225 @@ if df is None or error:
     st.error(f"שגיאה בטעינת הנתונים: {error}")
     st.stop()
 
-COL_NAME   = "Exercise_Name_EN"
-COL_AREA   = "Body_Area_EN"
-COL_REGION = "Body_Region_EN"
-COL_TYPE   = "Type_EN"
-COL_DIFF   = "Difficulty"
-COL_EQUIP  = "Equipment_EN"
-COL_INST   = "Instructions_EN"
-COL_TIPS   = "Clinical_Tips_EN"
-COL_YT     = "YouTube_Link"
-COL_RPE    = "Default_RPE"
+# ── Column names ──────────────────────────────────────────────────────────────
+C_NAME    = "Exercise_Name_EN"
+C_NAME_HE = "Exercise_Name_HE"
+C_AREA    = "Body_Area_EN"
+C_REGION  = "Body_Region_EN"
+C_TYPE    = "Type_EN"
+C_DIFF    = "Difficulty"
+C_EQUIP   = "Equipment_EN"
+C_INST    = "Instructions_EN"
+C_INST_HE = "Instructions_HE"
+C_TIPS    = "Clinical_Tips_EN"
+C_YT      = "YouTube_Link"
+C_RPE     = "Default_RPE"
 
-missing = [c for c in [COL_NAME, COL_AREA, COL_TYPE] if c not in df.columns]
+missing = [c for c in [C_NAME, C_AREA, C_TYPE] if c not in df.columns]
 if missing:
     st.error(f"עמודות חסרות: {missing}")
     st.stop()
 
+# ── Header ────────────────────────────────────────────────────────────────────
 today = date.today().strftime("%d.%m.%Y")
-st.markdown(
-    f'<div class="main-header">'
-    f'<div style="font-size:1.3rem;font-weight:bold">נדב רונן | פיזיותרפיה</div>'
-    f'<div style="font-size:0.85rem;opacity:0.85;margin-top:4px">{today}</div>'
-    f'</div>',
-    unsafe_allow_html=True
+logo_b64 = get_logo_b64()
+logo_html = (
+    f'<img src="data:image/jpeg;base64,{logo_b64}" alt="logo">'
+    if logo_b64
+    else '<div style="width:72px;height:72px;background:rgba(255,255,255,0.15);border-radius:10px;"></div>'
 )
 
+st.markdown(f"""
+<div class="app-header">
+    {logo_html}
+    <div class="app-header-text">
+        <h1>נדב רונן</h1>
+        <p>פיזיותרפיה וספורט</p>
+        <div class="app-header-date">{today}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Patient info ──────────────────────────────────────────────────────────────
 patient_name = st.text_input("שם המטופל", placeholder="לדוגמה: יוסי כהן")
 phone        = st.text_input("טלפון", placeholder="972501234567")
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
-rtl("בחירת תרגיל", tag="h4", color="#2E86AB")
+st.markdown("---")
 
-regions = sorted([r for r in df[COL_REGION].unique() if r != ""])
-selected_region = st.selectbox("אזור כללי", ["הכל"] + regions)
+# ── Filters — all shown at once ───────────────────────────────────────────────
+regions = sorted([r for r in df[C_REGION].unique() if r])
+selected_region = st.selectbox("אזור גוף", ["הכל"] + regions)
 
 filtered = df.copy()
 if selected_region != "הכל":
-    filtered = filtered[filtered[COL_REGION] == selected_region]
+    filtered = filtered[filtered[C_REGION] == selected_region]
 
-areas = sorted([a for a in filtered[COL_AREA].unique() if a != ""])
+areas = sorted([a for a in filtered[C_AREA].unique() if a])
 selected_area = st.selectbox("אזור ספציפי", ["הכל"] + areas)
 if selected_area != "הכל":
-    filtered = filtered[filtered[COL_AREA] == selected_area]
+    filtered = filtered[filtered[C_AREA] == selected_area]
 
-types = sorted([t for t in filtered[COL_TYPE].unique() if t != ""])
+types = sorted([t for t in filtered[C_TYPE].unique() if t])
 selected_type = st.selectbox("סוג תרגיל", ["הכל"] + types)
 if selected_type != "הכל":
-    filtered = filtered[filtered[COL_TYPE] == selected_type]
+    filtered = filtered[filtered[C_TYPE] == selected_type]
 
 if filtered.empty:
     st.warning("אין תרגילים בסינון זה.")
     st.stop()
 
-exercise_list = sorted(filtered[COL_NAME].tolist())
-selected = st.selectbox("בחר תרגיל", exercise_list)
-row = filtered[filtered[COL_NAME] == selected].iloc[0]
+exercise_list = sorted(filtered[C_NAME].tolist())
+selected_ex = st.selectbox("תרגיל", exercise_list)
+row = filtered[filtered[C_NAME] == selected_ex].iloc[0]
 
-diff  = str(row[COL_DIFF]) if row[COL_DIFF] != "" else "-"
-equip = row[COL_EQUIP]     if row[COL_EQUIP] != "" else "ללא ציוד"
-yt    = str(row.get(COL_YT, "")).strip()
-inst  = str(row.get(COL_INST, "")).strip()
-tips  = str(row.get(COL_TIPS, "")).strip()
+# ── Exercise card ─────────────────────────────────────────────────────────────
+st.markdown("---")
+name_he  = safe(row, C_NAME_HE)
+inst_en  = safe(row, C_INST)
+inst_he  = safe(row, C_INST_HE)
+tips_en  = safe(row, C_TIPS)
+equip_en = safe(row, C_EQUIP)
+yt_link  = safe(row, C_YT)
+diff     = safe(row, C_DIFF)
+rpe_def  = safe(row, C_RPE, "5")
 
-st.markdown(
-    f'<div class="ex-card">'
-    f'<div style="font-size:1.05rem;font-weight:bold;margin-bottom:8px">'
-    f'{selected} '
-    f'<span class="region-tag">{row[COL_REGION]}</span>'
-    f'<span class="tag">קושי {diff}/4</span>'
-    f'<span class="tag">{equip}</span>'
-    f'</div>',
-    unsafe_allow_html=True
-)
-if inst:
-    st.markdown(
-        f'<span style="direction:rtl;color:#555;font-size:0.88rem">הוראות:</span>'
-        f'<span class="en-text">{inst}</span>',
-        unsafe_allow_html=True
-    )
-if tips:
-    st.markdown(
-        f'<span style="direction:rtl;color:#1a6b3a;font-size:0.88rem">טיפ קליני:</span>'
-        f'<span class="en-text-green">{tips}</span>',
-        unsafe_allow_html=True
-    )
-if yt:
-    st.markdown(
-        f'<a href="{yt}" target="_blank" style="color:#2E86AB;font-weight:bold;'
-        f'text-decoration:none;display:block;margin-top:6px">סרטון הדגמה ב-YouTube</a>',
-        unsafe_allow_html=True
-    )
-else:
-    rtl("אין סרטון לתרגיל זה", color="#aaa", size="0.85rem")
-st.markdown('</div>', unsafe_allow_html=True)
+display_name = selected_ex + (f" ({name_he})" if name_he else "")
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
-rtl("מינון", tag="h4", color="#2E86AB")
+st.markdown(f"""
+<div class="ex-card">
+    <h3>{display_name}</h3>
+    <span class="tag">{safe(row, C_REGION)}</span>
+    <span class="tag-gray">{safe(row, C_AREA)}</span>
+    {'<span class="tag-outline">קושי: ' + diff + '</span>' if diff else ''}
+    {'<span class="tag-outline">ציוד: ' + equip_en + '</span>' if equip_en else ''}
+</div>
+""", unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3)
-with col1: sets = st.number_input("סטים",         min_value=1, max_value=10,  value=3)
-with col2: reps = st.number_input("חזרות",        min_value=1, max_value=60,  value=10)
-with col3: hold = st.number_input("שמירה (שנ')", min_value=0, max_value=120, value=0)
+if inst_en:
+    st.markdown(f'<div class="inst-box">{inst_en}</div>', unsafe_allow_html=True)
+if tips_en:
+    st.markdown(f'<div class="tip-box"><strong>Clinical Tip:</strong> {tips_en}</div>', unsafe_allow_html=True)
+if yt_link:
+    st.markdown(f'[הדגמה ב-YouTube]({yt_link})')
 
-try:
-    default_rpe = int(float(row[COL_RPE])) if str(row[COL_RPE]).strip() not in ["", "nan"] else 5
-except:
-    default_rpe = 5
+# ── Dosage ────────────────────────────────────────────────────────────────────
+st.markdown("---")
+section_title("מינון")
+default_rpe = int(float(rpe_def)) if rpe_def else 5
+c1, c2, c3 = st.columns(3)
+with c1: sets = st.number_input("סטים", 1, 10, 3)
+with c2: reps = st.number_input("חזרות", 1, 60, 10)
+with c3: hold = st.number_input("שמירה (שנ')", 0, 120, 0)
+rpe = st.slider("רמת מאמץ - RPE", 1, 10, default_rpe)
 
-rtl("רמת מאמץ - RPE (1 = קל מאוד, 10 = מקסימום)")
-rpe = st.slider("RPE", 1, 10, default_rpe, label_visibility="collapsed")
-
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
-rtl("רמת כאב - VAS", tag="h4", color="#2E86AB")
-rtl("0 = ללא כאב | 10 = כאב קיצוני", color="#888", size="0.85rem")
-vas = st.slider("VAS", 0, 10, 0, label_visibility="collapsed")
+# ── VAS ───────────────────────────────────────────────────────────────────────
+st.markdown("---")
+vas = st.slider("רמת כאב - VAS", 0, 10, 0)
 tl_color, tl_label, tl_msg = traffic_light(vas)
-st.markdown(
-    f'<div class="info-box" style="background:{tl_color}">'
-    f'<strong>{tl_label}</strong><br>'
-    f'<span style="font-size:0.9rem">{tl_msg}</span>'
-    f'</div>',
-    unsafe_allow_html=True
-)
+st.markdown(f'<div class="status-bar" style="background:{tl_color};">{tl_label}</div>', unsafe_allow_html=True)
+rtl(tl_msg, color="#444")
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
-rtl("ניהול עומס", tag="h4", color="#2E86AB")
+# ── Load management ───────────────────────────────────────────────────────────
+st.markdown("---")
+section_title("Load Management (Foster)")
+c1, c2 = st.columns(2)
+with c1: duration    = st.number_input("משך אימון (דקות)", 5, 120, 30)
+with c2: sessions_pw = st.number_input("פעמים בשבוע", 1, 7, 3)
 
-col1, col2 = st.columns(2)
-with col1: duration    = st.number_input("משך אימון (דקות)", min_value=5, max_value=120, value=30)
-with col2: sessions_pw = st.number_input("פעמים בשבוע",      min_value=1, max_value=7,   value=3)
+session_au = rpe * duration
+weekly_au  = session_au * sessions_pw
+lm_color, lm_label = load_label(session_au)
 
-session_load = rpe * duration
-weekly_load  = session_load * sessions_pw
-lc, ll = load_label(session_load)
+ca, cb = st.columns(2)
+with ca:
+    st.markdown(f'<div class="status-bar" style="background:{lm_color};">עומס יחידה: {session_au} AU<br><small>{lm_label}</small></div>', unsafe_allow_html=True)
+with cb:
+    st.markdown(f'<div class="status-bar" style="background:#2E86AB;">עומס שבועי: {weekly_au} AU</div>', unsafe_allow_html=True)
 
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown(
-        f'<div class="load-box" style="background:{lc}">'
-        f'עומס יחידה<br><strong>{session_load} AU</strong></div>',
-        unsafe_allow_html=True
-    )
-with col2:
-    st.markdown(
-        f'<div class="load-box" style="background:#2E86AB">'
-        f'עומס שבועי<br><strong>{weekly_load} AU</strong></div>',
-        unsafe_allow_html=True
-    )
-rtl(ll, color=lc, size="0.88rem")
-
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
-if st.button("הוסף תרגיל לתוכנית", type="primary"):
+# ── Add to cart ───────────────────────────────────────────────────────────────
+st.markdown("---")
+if st.button("הוסף לתוכנית", use_container_width=True):
     if len(st.session_state.exercise_cart) >= 8:
-        st.warning("מקסימום 8 תרגילים בתוכנית אחת.")
+        st.warning("מקסימום 8 תרגילים בתוכנית.")
     else:
-        st.session_state.exercise_cart[selected] = {
-            "שם": selected, "אזור": row[COL_AREA], "region": row[COL_REGION],
-            "סוג": row[COL_TYPE], "סטים": sets, "חזרות": reps, "שמירה": hold,
-            "RPE": rpe, "VAS": vas, "עומס": session_load,
-            "yt": yt, "הוראות": inst, "טיפ": tips,
+        st.session_state.exercise_cart[selected_ex] = {
+            "name_he":  name_he,
+            "area":     safe(row, C_AREA),
+            "region":   safe(row, C_REGION),
+            "sets":     sets,
+            "reps":     reps,
+            "hold":     hold,
+            "rpe":      rpe,
+            "vas":      vas,
+            "inst_he":  inst_he or inst_en,
+            "yt":       yt_link,
+            "au":       session_au,
         }
-        st.success(f"{selected} נוסף לתוכנית")
+        st.success(f"{selected_ex} נוסף לתוכנית!")
 
-if st.session_state.exercise_cart:
-    st.markdown('<hr class="divider">', unsafe_allow_html=True)
-    n          = len(st.session_state.exercise_cart)
-    total_load = sum(d["עומס"] for d in st.session_state.exercise_cart.values())
-    rtl(f"התוכנית - {n} תרגילים | עומס כולל: {total_load} AU", tag="h4", color="#2E86AB")
+# ── Cart ──────────────────────────────────────────────────────────────────────
+cart = st.session_state.exercise_cart
+if cart:
+    st.markdown("---")
+    total_au = sum(d["au"] for d in cart.values())
+    section_title(f"תוכנית — {len(cart)} תרגילים | עומס כולל: {total_au} AU")
 
-    for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
-        hold_str = f" | שמירה {d['שמירה']} שנ'" if d["שמירה"] > 0 else ""
-        yt_link  = (
-            f' | <a href="{d["yt"]}" target="_blank" style="color:#2E86AB">סרטון</a>'
-            if d["yt"] else ""
-        )
+    for i, (ex_name, d) in enumerate(cart.items(), 1):
+        he       = d.get("name_he", "")
+        label    = ex_name + (f" ({he})" if he else "")
+        hold_str = f", שמירה {d['hold']} שנ'" if d["hold"] > 0 else ""
         st.markdown(
             f'<div class="cart-item">'
-            f'<strong>{i}. {d["שם"]}</strong> '
-            f'<span class="region-tag">{d["region"]}</span>'
-            f'<span class="tag">{d["אזור"]}</span><br>'
-            f'{d["סטים"]} סטים x {d["חזרות"]} חזרות{hold_str} | RPE: {d["RPE"]}'
-            f'{yt_link}</div>',
+            f'<strong>{i}. {label}</strong><br>'
+            f'{d["sets"]} סטים x {d["reps"]} חזרות{hold_str} | RPE {d["rpe"]} | VAS {d["vas"]}'
+            f'</div>',
             unsafe_allow_html=True
         )
 
-    st.markdown('<hr class="divider">', unsafe_allow_html=True)
-    rtl("שליחה לוואטסאפ", tag="h4", color="#2E86AB")
-    include_inst = st.checkbox("כלול הוראות ביצוע", value=False)
+    include_inst = st.checkbox("כלול הוראות ביצוע בהודעה", value=False)
 
-    if st.button("שלח תוכנית לוואטסאפ", type="primary"):
-        if not patient_name or not phone:
-            st.warning("נא למלא שם מטופל ומספר טלפון בראש הדף")
-        else:
-            lines = [f"שלום {patient_name},", f"תאריך: {today}", "", "התוכנית שלך:", ""]
-            for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
-                hold_str = f", שמירה {åd['שמירה']} שנ'" if d["שמירה"] > 0 else ""
-                lines.append(f"{i}. {d['שם']} ({d['אזור']})")
-                lines.append(f"   {d['סטים']} סטים x {d['חזרות']} חזרות{hold_str} | RPE: {d['RPE']}")
-                if include_inst and d["הוראות"]:
-                    lines.append(f"   {d['הוראות']}")
-                if d["yt"]:
-                    lines.append(f"   {d['yt']}")
-                lines.append("")
-            lines += [
-                "--- הנחיות כאב ---",
-                "ירוק (VAS 0-3): המשך כרגיל",
-                "כתום (VAS 4-6): הפחת חזרות ב-50%",
-                "אדום (VAS 7+): עצור ופנה אלי",
-                "",
-                "--- צ'קליסט שבועי ---",
-                "לאחר כל אימון שלח לי:",
-            ]
-            for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
-                lines.append(f"{i}. {d['שם']} - בוצע? כן / לא | כאב (0-10):")
-            lines += ["", "בהצלחה!", "נדב רונן | פיזיותרפיה"]
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        if st.button("נקה תוכנית", use_container_width=True):
+            st.session_state.exercise_cart = {}
+            st.rerun()
 
-            msg = "\n".join(lines)
-            url = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
-            st.markdown(
-                f'<a href="{url}" target="_blank">'
-                f'<button style="background:#25D366;color:white;padding:14px;'
-                f'border:none;border-radius:10px;width:100%;font-size:1.05rem;'
-                f'font-weight:bold;cursor:pointer;margin-top:8px">'
-                f'פתח בוואטסאפ</button></a>',
-                unsafe_allow_html=True
-            )
+    with c2:
+        lines = [f"*תוכנית תרגילים — {today}*", "_נדב רונן, פיזיותרפיה וספורט_", ""]
+        if patient_name:
+            lines.insert(0, f"שלום {patient_name},")
 
-    if st.button("נקה תוכנית"):
-        st.session_state.exercise_cart = {}
-        st.rerun()
+        for i, (ex_name, d) in enumerate(cart.items(), 1):
+            he       = d.get("name_he") or ex_name
+            hold_str = f", שמירה {d['hold']} שנ'" if d["hold"] > 0 else ""
+            lines.append(f"*{i}. {he}*")
+            lines.append(f"   {d['sets']} סטים x {d['reps']} חזרות{hold_str} | RPE {d['rpe']}")
+            if include_inst and d.get("inst_he"):
+                lines.append(f"   {d['inst_he']}")
+            if d.get("yt"):
+                lines.append(f"   {d['yt']}")
+            lines.append("")
+
+        lines += [
+            "━━━━━━━━━━━━━━",
+            "*הנחיות כאב:*",
+            "ירוק (0-3): המשך כרגיל",
+            "כתום (4-6): הפחת חזרות ב-50%",
+            "אדום (7+): עצור ופנה אלי",
+            "",
+            "━━━━━━━━━━━━━━",
+            "*צ'קליסט שבועי:*",
+            "יום א׳ [ ]  יום ג׳ [ ]  יום ה׳ [ ]",
+            "",
+            "_בהצלחה! נדב_"
+        ]
+
+        msg     = "\n".join(lines)
+        encoded = urllib.parse.quote(msg)
+        phone_clean = phone.strip() if phone else ""
+        wa_url  = f"https://wa.me/{phone_clean}?text={encoded}" if phone_clean else f"https://wa.me/?text={encoded}"
+
+        st.markdown(
+            f'<a href="{wa_url}" target="_blank" class="wa-btn">שלח בוואטסאפ</a>',
+            unsafe_allow_html=True
+        )
