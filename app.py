@@ -150,7 +150,7 @@ div[data-testid="stSlider"] label {
     font-size: 0.9rem;
     color: #2c3e50;
     direction: ltr;
-    text-align: left;
+    text-align: center;
 }
 
 .tip-box {
