@@ -43,3 +43,16 @@ YouTube_Link, Default_RPE
 - CSV לא נמצא → st.error() + st.stop()
 - סינון ריק → st.warning() + st.stop()
 - encoding fallback: utf-8-sig → utf-8 → windows-1255 → cp1255
+## v1.3 — Design Update (23.02.2026)
+
+### שינויים שבוצעו:
+- Header: גרדיאנט ירוק + לוגו אוטומטי מ-logo.jpg
+- CSS גלובלי: צבעי מותג ירוק, כרטיסי תרגיל עם shadow
+- Responsive design: @media queries למובייל ודסקטופ
+- Selectbox labels: RTL, מרכז, ירוק כהה
+- Cursor pointer על selectbox
+- Cart: מחיקת תרגיל בודד עם כפתור ✕
+- כפתור וואטסאפ: שורה נפרדת, רוחב מלא
+- Checkbox label: צבע נראה
+- Cart item: טקסט כהה על רקע לבן, RTL
+- אפס אימוג'ים בממשק
