@@ -351,7 +351,7 @@ if st.session_state.exercise_cart:
         else:
             lines = [f"שלום {patient_name},", f"תאריך: {today}", "", "התוכנית שלך:", ""]
             for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
-                hold_str = f", שמירה {d['שמירה']} שנ'" if d["שמירה"] > 0 else ""
+                hold_str = f", שמירה {åd['שמירה']} שנ'" if d["שמירה"] > 0 else ""
                 lines.append(f"{i}. {d['שם']} ({d['אזור']})")
                 lines.append(f"   {d['סטים']} סטים x {d['חזרות']} חזרות{hold_str} | RPE: {d['RPE']}")
                 if include_inst and d["הוראות"]:
