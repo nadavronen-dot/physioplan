@@ -603,18 +603,31 @@ if cart:
     section_title(f"תוכנית — {len(cart)} תרגילים | עומס כולל: {total_au} AU")
 
     for i, (ex_name, d) in enumerate(cart.items(), 1):
-        he       = d.get("name_he", "")
-        label    = ex_name + (f" ({he})" if he else "")
+        he = d.get("name_he", "")
+        label = ex_name + (f" ({he})" if he else "")
         hold_str = f", שמירה {d['hold']} שנ'" if d["hold"] > 0 else ""
-        st.markdown(
-            f'<div class="cart-item">'
-            f'<strong>{i}. {label}</strong><br>'
-            f'{d["sets"]} סטים x {d["reps"]} חזרות{hold_str} | RPE {d["rpe"]} | VAS {d["vas"]}'
-            f'</div>',
-            unsafe_allow_html=True
-        )
 
+        col_text, col_del = st.columns([10, 1])
+        with col_text:
+            st.markdown(
+                f'<div class="cart-item">'
+                f'<strong>{i}. {label}</strong><br>'
+                f'{d["sets"]} סטים x {d["reps"]} חזרות{hold_str} | RPE {d["rpe"]} | VAS {d["vas"]}'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        with col_del:
+            if st.button("✕", key=f"del_{ex_name}", help="הסר תרגיל"):
+                del st.session_state.exercise_cart[ex_name]
+                st.rerun()
     include_inst = st.checkbox("כלול הוראות ביצוע בהודעה", value=False)
+
+    # כפתור נקה
+    col_clear, _ = st.columns([1, 2])
+    with col_clear:
+        if st.button("נקה תוכנית", use_container_width=True):
+            st.session_state.exercise_cart = {}
+            st.rerun()
 
     # בניית הודעת וואטסאפ
     lines = [f"*תוכנית תרגילים — {today}*", "_נדב רונן, פיזיותרפיה וספורט_", ""]
@@ -622,7 +635,7 @@ if cart:
         lines.insert(0, f"שלום {patient_name},")
 
     for i, (ex_name, d) in enumerate(cart.items(), 1):
-        he = d.get("name_he") or ex_name
+        he       = d.get("name_he") or ex_name
         hold_str = f", שמירה {d['hold']} שנ'" if d["hold"] > 0 else ""
         lines.append(f"*{i}. {he}*")
         lines.append(f"   {d['sets']} סטים x {d['reps']} חזרות{hold_str} | RPE {d['rpe']}")
@@ -646,14 +659,7 @@ if cart:
         "_בהצלחה! נדב_"
     ]
 
-    # כפתור נקה תוכנית
-    col_clear, _ = st.columns([1, 2])
-    with col_clear:
-        if st.button("נקה תוכנית", use_container_width=True):
-            st.session_state.exercise_cart = {}
-            st.rerun()
-
-    # כפתור וואטסאפ — שורה נפרדת ורוחב מלא
+    # כפתור וואטסאפ
     msg = "\n".join(lines)
     encoded = urllib.parse.quote(msg)
     phone_clean = phone.strip() if phone else ""
