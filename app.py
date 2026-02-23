@@ -236,6 +236,85 @@ div[data-testid="stSelectbox"] [role="listbox"],
 div[data-testid="stSelectbox"] [role="option"] {
     cursor: pointer !important;
 }
+/* ══ RESPONSIVE ══════════════════════════════════════════════ */
+
+/* ── Desktop (מעל 768px) ── */
+@media (min-width: 768px) {
+    .app-header {
+        padding: 24px 36px;
+    }
+    .app-header img {
+        height: 88px;
+        width: 88px;
+    }
+    .app-header-text h1 {
+        font-size: 2rem;
+    }
+    .app-header-text p {
+        font-size: 1.05rem;
+    }
+    .ex-card {
+        padding: 20px 28px;
+    }
+    .stButton > button {
+        width: auto !important;
+        min-width: 200px;
+    }
+}
+
+/* ── Mobile (עד 768px) ── */
+@media (max-width: 768px) {
+    .app-header {
+        padding: 14px 16px;
+        gap: 12px;
+        border-radius: 10px;
+    }
+    .app-header img {
+        height: 52px;
+        width: 52px;
+    }
+    .app-header-text h1 {
+        font-size: 1.25rem;
+    }
+    .app-header-text p {
+        font-size: 0.82rem;
+    }
+    .app-header-date {
+        font-size: 0.72rem;
+    }
+    .ex-card {
+        padding: 12px 14px;
+        border-radius: 10px;
+    }
+    .inst-box, .tip-box {
+        font-size: 0.85rem;
+        padding: 8px 10px;
+    }
+    .tag, .tag-gray, .tag-outline {
+        font-size: 0.72rem;
+        padding: 2px 8px;
+    }
+    .cart-item {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    .wa-btn {
+        padding: 14px 20px;
+        font-size: 1.05rem;
+    }
+    .section-title {
+        font-size: 0.95rem;
+    }
+    .status-bar {
+        font-size: 0.92rem;
+        padding: 8px 12px;
+    }
+    /* כפתורים — רוחב מלא במובייל */
+    .stButton > button {
+        width: 100% !important;
+        border-radius: 14px !important;
+    }
+}
 
 </style>
 """, unsafe_allow_html=True)
