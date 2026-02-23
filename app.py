@@ -173,21 +173,32 @@ div[data-testid="stSlider"] label {
     color: white;
 }
 
+/* ── Cart item text ── */
 .cart-item {
     background: white;
     border-radius: 10px;
-    padding: 10px 16px;
+    padding: 12px 16px;
     margin-bottom: 8px;
     border: 1px solid var(--border);
-    direction: center;
-    text-align: center;
-    font-weight: 700;;
-    color: #1a1a1a !important;
+    direction: rtl;
+    text-align: right;
+    color: #1a1a1a;
     font-size: 0.95rem;
+    line-height: 1.6;
 }
-.cart-item strong { color: var(--green-dark); }
-.cart-item span, .cart-item br ~ * { color: #333 !important; }
+.cart-item strong {
+    color: var(--green-dark);
+    font-size: 1rem;
+}
 
+/* ── Checkbox ── */
+div[data-testid="stCheckbox"] label p,
+div[data-testid="stCheckbox"] label span,
+div[data-testid="stCheckbox"] p {
+    color: #1a1a1a !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+}
 
 .wa-btn {
     display: block;
@@ -320,6 +331,11 @@ div[data-testid="stSelectbox"] [role="option"] {
         width: 100% !important;
         border-radius: 14px !important;
     }
+}
+/* ── Checkbox label ── */
+div[data-testid="stCheckbox"] label {
+    color: #1a1a1a !important;
+    font-weight: 600 !important;
 }
 
 </style>
@@ -600,48 +616,49 @@ if cart:
 
     include_inst = st.checkbox("כלול הוראות ביצוע בהודעה", value=False)
 
-    c1, c2 = st.columns([1, 2])
-    with c1:
+    # בניית הודעת וואטסאפ
+    lines = [f"*תוכנית תרגילים — {today}*", "_נדב רונן, פיזיותרפיה וספורט_", ""]
+    if patient_name:
+        lines.insert(0, f"שלום {patient_name},")
+
+    for i, (ex_name, d) in enumerate(cart.items(), 1):
+        he = d.get("name_he") or ex_name
+        hold_str = f", שמירה {d['hold']} שנ'" if d["hold"] > 0 else ""
+        lines.append(f"*{i}. {he}*")
+        lines.append(f"   {d['sets']} סטים x {d['reps']} חזרות{hold_str} | RPE {d['rpe']}")
+        if include_inst and d.get("inst_he"):
+            lines.append(f"   {d['inst_he']}")
+        if d.get("yt"):
+            lines.append(f"   {d['yt']}")
+        lines.append("")
+
+    lines += [
+        "━━━━━━━━━━━━━━",
+        "*הנחיות כאב:*",
+        "ירוק (0-3): המשך כרגיל",
+        "כתום (4-6): הפחת חזרות ב-50%",
+        "אדום (7+): עצור ופנה אלי",
+        "",
+        "━━━━━━━━━━━━━━",
+        "*צ'קליסט שבועי:*",
+        "יום א׳ [ ]  יום ג׳ [ ]  יום ה׳ [ ]",
+        "",
+        "_בהצלחה! נדב_"
+    ]
+
+    # כפתור נקה תוכנית
+    col_clear, _ = st.columns([1, 2])
+    with col_clear:
         if st.button("נקה תוכנית", use_container_width=True):
             st.session_state.exercise_cart = {}
             st.rerun()
 
-    with c2:
-        lines = [f"*תוכנית תרגילים — {today}*", "_נדב רונן, פיזיותרפיה וספורט_", ""]
-        if patient_name:
-            lines.insert(0, f"שלום {patient_name},")
-
-        for i, (ex_name, d) in enumerate(cart.items(), 1):
-            he       = d.get("name_he") or ex_name
-            hold_str = f", שמירה {d['hold']} שנ'" if d["hold"] > 0 else ""
-            lines.append(f"*{i}. {he}*")
-            lines.append(f"   {d['sets']} סטים x {d['reps']} חזרות{hold_str} | RPE {d['rpe']}")
-            if include_inst and d.get("inst_he"):
-                lines.append(f"   {d['inst_he']}")
-            if d.get("yt"):
-                lines.append(f"   {d['yt']}")
-            lines.append("")
-
-        lines += [
-            "━━━━━━━━━━━━━━",
-            "*הנחיות כאב:*",
-            "ירוק (0-3): המשך כרגיל",
-            "כתום (4-6): הפחת חזרות ב-50%",
-            "אדום (7+): עצור ופנה אלי",
-            "",
-            "━━━━━━━━━━━━━━",
-            "*צ'קליסט שבועי:*",
-            "יום א׳ [ ]  יום ג׳ [ ]  יום ה׳ [ ]",
-            "",
-            "_בהצלחה! נדב_"
-        ]
-
-        msg     = "\n".join(lines)
-        encoded = urllib.parse.quote(msg)
-        phone_clean = phone.strip() if phone else ""
-        wa_url  = f"https://wa.me/{phone_clean}?text={encoded}" if phone_clean else f"https://wa.me/?text={encoded}"
-
-        st.markdown(
-            f'<a href="{wa_url}" target="_blank" class="wa-btn">שלח בוואטסאפ</a>',
-            unsafe_allow_html=True
-        )
+    # כפתור וואטסאפ — שורה נפרדת ורוחב מלא
+    msg = "\n".join(lines)
+    encoded = urllib.parse.quote(msg)
+    phone_clean = phone.strip() if phone else ""
+    wa_url = f"https://wa.me/{phone_clean}?text={encoded}" if phone_clean else f"https://wa.me/?text={encoded}"
+    st.markdown(
+        f'<a href="{wa_url}" target="_blank" class="wa-btn">שלח בוואטסאפ</a>',
+        unsafe_allow_html=True
+    )
