@@ -2,160 +2,440 @@ import streamlit as st
 import pandas as pd
 import os
 import urllib.parse
+from datetime import date
 
-# --- 1. הגדרות דף ---
-st.set_page_config(page_title="נדב רונן פיזיותרפיה", layout="wide")
+# ============================================================
+# הגדרות דף
+# ============================================================
+st.set_page_config(page_title="נדב רונן פיזיותרפיה", layout="centered")
 
-# CSS ממוקד למניעת חריגות ושיפור נראות בטלפון
 st.markdown("""
-    <style>
-    .stApp { direction: rtl; text-align: right; }
-    [data-testid="stSidebar"] { direction: rtl; }
-    .stAlert { direction: rtl; text-align: right; }
-
-    /* מבטיח שהסליידרים והטקסט לא יחרגו מהמסגרת */
-    .stSlider, .stSelectbox, .stTextInput, .stNumberInput {
-        width: 100% !important;
+<style>
+    html, body, [class*="css"] {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 16px;
     }
-
-    /* מניעת גלילה אופקית של כל הדף */
-    html, body {
-        max-width: 100vw;
-        overflow-x: hidden;
+    .block-container {
+        max-width: 520px !important;
+        padding: 1.2rem 1rem !important;
     }
-    </style>
-    """, unsafe_allow_html=True)
+    div[data-baseweb="select"] > div {
+        direction: rtl;
+        text-align: right;
+    }
+    div[data-testid="stSlider"] { direction: ltr; }
+    .stButton > button {
+        width: 100%;
+        font-size: 1rem;
+        padding: 0.7rem;
+        border-radius: 10px;
+        margin-top: 6px;
+        font-weight: bold;
+    }
+    .ex-card {
+        background: #f0f6fb;
+        border-right: 5px solid #2E86AB;
+        padding: 14px 16px;
+        border-radius: 10px;
+        margin: 8px 0;
+        direction: rtl;
+    }
+    .cart-item {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-right: 4px solid #27AE60;
+        padding: 10px 14px;
+        border-radius: 10px;
+        margin: 6px 0;
+        direction: rtl;
+        font-size: 0.92rem;
+        line-height: 1.7;
+    }
+    .info-box {
+        padding: 12px 16px;
+        border-radius: 10px;
+        direction: rtl;
+        margin: 8px 0;
+        color: white;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    .load-box {
+        padding: 12px 8px;
+        border-radius: 10px;
+        direction: rtl;
+        text-align: center;
+        margin: 4px 0;
+        color: white;
+        font-weight: bold;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    .divider {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 18px 0;
+    }
+    .tag {
+        display: inline-block;
+        background: #e8f4f8;
+        color: #2E86AB;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 0.8rem;
+        margin-left: 4px;
+    }
+    .main-header {
+        background: linear-gradient(135deg, #2E86AB, #1a5f7a);
+        color: white;
+        padding: 16px 20px;
+        border-radius: 12px;
+        direction: rtl;
+        margin-bottom: 16px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-if 'exercise_cart' not in st.session_state:
+# ============================================================
+# session_state
+# ============================================================
+if "exercise_cart" not in st.session_state:
     st.session_state.exercise_cart = {}
+if "session_load_total" not in st.session_state:
+    st.session_state.session_load_total = 0
 
+# ============================================================
+# פונקציות עזר
+# ============================================================
+def rtl(text, tag="p", color="#111", size="1rem"):
+    st.markdown(
+        f'<{tag} style="direction:rtl;text-align:right;color:{color};'
+        f'margin:4px 0;font-size:{size}">{text}</{tag}>',
+        unsafe_allow_html=True
+    )
 
-# --- 2. טעינת נתונים ---
+def traffic_light(vas):
+    if vas == 0:
+        return "#27AE60", "ירוק — ללא כאב", "מצוין. המשך את התרגיל לפי המינון שקיבלת."
+    if vas <= 3:
+        return "#27AE60", "ירוק — כאב קל (תקין)", (
+            "כאב קל במהלך שיקום הוא תקין ובטוח. המשך כרגיל. אם הכאב גדל — עצור."
+        )
+    if vas <= 6:
+        return "#F39C12", "כתום — הפחת עצימות", (
+            "הפחת חזרות ב-50% ועבוד בטווח תנועה קטן יותר. "
+            "אם הכאב לא פוחת תוך 24 שעות — צור קשר."
+        )
+    return "#E74C3C", "אדום — עצור", (
+        "הפסק את התרגיל עכשיו. מנוחה מלאה. "
+        "אם הכאב נמשך מעל שעה או מחמיר — פנה לטיפול."
+    )
+
+def load_label(load):
+    if load < 150:
+        return "#27AE60", "עומס נמוך — שיקום ראשוני"
+    if load < 300:
+        return "#F39C12", "עומס בינוני — שלב חיזוק"
+    if load < 450:
+        return "#E67E22", "עומס גבוה — וודא התאוששות"
+    return "#E74C3C", "עומס גבוה מאוד — שקול הפחתה"
+
+# ============================================================
+# טעינת נתונים
+# ============================================================
 @st.cache_data
 def load_data():
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    paths = [os.path.join(base_path, "data", "exercises.csv"), os.path.join(base_path, "exercises.csv")]
-    csv_path = next((p for p in paths if os.path.exists(p)), None)
-
-    if not csv_path:
-        st.error("קובץ הנתונים exercises.csv לא נמצא.")
-        return None
-
-    for enc in ['utf-8-sig', 'windows-1255', 'utf-8']:
-        try:
-            test_df = pd.read_csv(csv_path, encoding=enc, nrows=1)
-            skip = 1 if test_df.columns.size == 1 and test_df.columns[0] == 'exercises' else 0
-            data = pd.read_csv(csv_path, encoding=enc, skiprows=skip)
-            data.columns = data.columns.str.strip()
-            return data.fillna('')
-        except:
+    base = os.path.dirname(os.path.abspath(__file__))
+    search_paths = [
+        os.path.join(base, "exercises.csv"),
+        os.path.join(base, "data", "exercises.csv"),
+        os.path.join(base, "data", "Exercises.csv"),
+        os.path.join(base, "Exercises.csv"),
+    ]
+    for path in search_paths:
+        if not os.path.exists(path):
             continue
-    return None
+        for enc in ["utf-8-sig", "utf-8", "windows-1255", "cp1255"]:
+            try:
+                df = pd.read_csv(path, encoding=enc)
+                df.columns = df.columns.str.strip()
+                df = df.fillna("")
+                df["Type_EN"] = df["Type_EN"].str.strip().str.replace(
+                    "stabillity", "stability", case=False, regex=False
+                )
+                return df, None
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                return None, str(e)
+    return None, "לא נמצא קובץ exercises.csv"
 
-
-df = load_data()
-
-
-def find_col(df, options):
-    for opt in options:
-        if opt in df.columns: return opt
-    return df.columns[0] if not df.empty else None
-
-
-if df is not None:
-    COL_NAME = find_col(df, ['Exercise_Name_HE', 'name_he', 'Exercise_Name'])
-    COL_INST = find_col(df, ['Instructions_HE', 'instructions_he', 'Instructions'])
-    COL_TIPS = find_col(df, ['Clinical_Tips_HE', 'clinical_tips_he', 'Clinical_Tips'])
-    COL_AREA = find_col(df, ['Body_Area_HE', 'body_area_he', 'Body_Area'])
-else:
+df, error = load_data()
+if df is None or error:
+    st.error(f"שגיאה בטעינת הנתונים: {error}")
     st.stop()
 
+COL_NAME  = "Exercise_Name_EN"
+COL_AREA  = "Body_Area_EN"
+COL_TYPE  = "Type_EN"
+COL_DIFF  = "Difficulty"
+COL_EQUIP = "Equipment_EN"
+COL_INST  = "Instructions_EN"
+COL_TIPS  = "Clinical_Tips_EN"
+COL_YT    = "YouTube_Link"
+COL_RPE   = "Default_RPE"
 
-def rtl_markdown(text, size="p"):
-    tag = "h3" if size == "h3" else "p"
-    st.markdown(f'<div style="direction: rtl; text-align: right;"><{tag}>{text}</{tag}></div>', unsafe_allow_html=True)
+missing = [c for c in [COL_NAME, COL_AREA, COL_TYPE] if c not in df.columns]
+if missing:
+    st.error(f"עמודות חסרות: {missing}")
+    st.stop()
 
+# ============================================================
+# כותרת + פרטי מטופל
+# ============================================================
+today = date.today().strftime("%d.%m.%Y")
+st.markdown(
+    f'<div class="main-header">'
+    f'<div style="font-size:1.3rem;font-weight:bold">נדב רונן | פיזיותרפיה</div>'
+    f'<div style="font-size:0.85rem;opacity:0.85;margin-top:4px">{today}</div>'
+    f'</div>',
+    unsafe_allow_html=True
+)
 
-# --- 3. סרגל צד ---
-with st.sidebar:
-    st.markdown('<div style="direction: rtl; text-align: right;"><h1>נדב רונן</h1></div>', unsafe_allow_html=True)
-    st.divider()
-    rtl_markdown("סל תרגילים")
+patient_name = st.text_input("שם המטופל", placeholder="לדוגמה: יוסי כהן")
+phone = st.text_input("טלפון", placeholder="972501234567")
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
-    if not st.session_state.exercise_cart:
-        rtl_markdown("הסל ריק")
-    else:
-        for ex_id, details in list(st.session_state.exercise_cart.items()):
-            col_ex, col_del = st.columns([4, 1])
-            with col_ex:
-                rtl_markdown(f"{details['name']} ({details['sets']}x{details['reps']})")
-            if col_del.button("הסר", key=f"del_{ex_id}"):
-                del st.session_state.exercise_cart[ex_id]
-                st.rerun()
+# ============================================================
+# בחירת תרגיל
+# ============================================================
+rtl("בחירת תרגיל", tag="h4", color="#2E86AB")
 
-        st.divider()
-        msg = "תוכנית תרגול - נדב רונן פיזיותרפיה\n\n"
-        for ex in st.session_state.exercise_cart.values():
-            msg += f"* {ex['name']}\nמינון: {ex['sets']} סטים, {ex['reps']} חזרות\n"
-            msg += f"קושי (RPE): {ex['rpe']}/10, כאב (VAS): {ex['vas']}/10\n"
-            msg += f"הנחיה: {ex['status']}\n"
-            if ex['link']: msg += f"קישור: {ex['link']}\n"
-            msg += "----------------\n"
-        st.link_button("שלח תוכנית בוואטסאפ", f"https://wa.me/?text={urllib.parse.quote(msg)}",
-                       use_container_width=True)
+col1, col2 = st.columns(2)
+with col1:
+    areas = sorted([a for a in df[COL_AREA].unique() if a != ""])
+    selected_area = st.selectbox("אזור גוף", ["הכל"] + areas)
+with col2:
+    types = sorted([t for t in df[COL_TYPE].unique() if t != ""])
+    selected_type = st.selectbox("סוג תרגיל", ["הכל"] + types)
 
-    st.divider()
-    rtl_markdown("### סינון")
-    search_query = st.text_input("חיפושי חופשי", "")
-    area_options = sorted(df[COL_AREA].unique()) if COL_AREA in df.columns else []
-    selected_area = st.selectbox("אזור בגוף", ["הכל"] + area_options)
-
-# --- 4. תצוגה מרכזית ---
-st.markdown('<div style="direction: rtl; text-align: right;"><h1>מאגר תרגילים</h1></div>', unsafe_allow_html=True)
-
-f_df = df.copy()
-if search_query:
-    f_df = f_df[f_df[COL_NAME].astype(str).str.contains(search_query, case=False)]
+filtered = df.copy()
 if selected_area != "הכל":
-    f_df = f_df[f_df[COL_AREA] == selected_area]
+    filtered = filtered[filtered[COL_AREA] == selected_area]
+if selected_type != "הכל":
+    filtered = filtered[filtered[COL_TYPE] == selected_type]
 
-for index, row in f_df.iterrows():
-    with st.container(border=True):
-        # כותרת והוראות
-        rtl_markdown(row[COL_NAME], size="h3")
-        if row[COL_INST]:
-            rtl_markdown(f"**הוראות:** {row[COL_INST]}")
-        if row[COL_TIPS]:
-            st.info(f"דגש קליני: {row[COL_TIPS]}")
+if filtered.empty:
+    st.warning("אין תרגילים בסינון זה.")
+    st.stop()
 
-        # תצוגה מדורגת (אחד מתחת לשני) למניעת חריגות בטלפון
-        if 'YouTube_Link' in row and row['YouTube_Link']:
-            st.video(row['YouTube_Link'])
+exercise_list = sorted(filtered[COL_NAME].tolist())
+selected = st.selectbox("בחר תרגיל", exercise_list)
+row = filtered[filtered[COL_NAME] == selected].iloc[0]
 
-        st.divider()
+# ============================================================
+# כרטיס תרגיל
+# ============================================================
+diff  = str(row[COL_DIFF]) if row[COL_DIFF] != "" else "-"
+equip = row[COL_EQUIP] if row[COL_EQUIP] != "" else "ללא ציוד"
+yt    = row.get(COL_YT, "")
 
-        # מינונים - עכשיו בפריסה רחבה ובטוחה
-        st.write("**מינון והנחיות**")
-        c1, c2 = st.columns(2)
-        with c1:
-            s = st.number_input("סטים", 1, 10, 3, key=f"s_{index}")
-        with c2:
-            r = st.text_input("חזרות", "10", key=f"r_{index}")
+st.markdown(
+    f'<div class="ex-card">'
+    f'<div style="font-size:1.05rem;font-weight:bold;margin-bottom:6px">'
+    f'{selected} '
+    f'<span class="tag">קושי {diff}/4</span>'
+    f'<span class="tag">{equip}</span>'
+    f'</div>',
+    unsafe_allow_html=True
+)
+if row.get(COL_INST, ""):
+    rtl(f"הוראות: {row[COL_INST]}", color="#333")
+if row.get(COL_TIPS, ""):
+    rtl(f"טיפ קליני: {row[COL_TIPS]}", color="#1a6b3a")
+if yt:
+    st.markdown(
+        f'<a href="{yt}" target="_blank" style="color:#2E86AB;font-weight:bold;'
+        f'text-decoration:none;direction:rtl;display:block;margin-top:6px">'
+        f'▶ סרטון הדגמה ב-YouTube</a>',
+        unsafe_allow_html=True
+    )
+else:
+    rtl("אין סרטון לתרגיל זה", color="#aaa", size="0.85rem")
+st.markdown('</div>', unsafe_allow_html=True)
 
-        # סליידרים לכל רוחב המסך
-        rpe = st.slider("קושי (RPE)", 1, 10, 5, key=f"rpe_{index}")
-        vas = st.slider("רף כאב (VAS)", 0, 10, 3, key=f"vas_{index}")
+# ============================================================
+# מינון
+# ============================================================
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+rtl("מינון", tag="h4", color="#2E86AB")
 
-        status = st.selectbox(
-            "הנחיית המשכיות",
-            ["המשך כרגיל", "המשך בזהירות", "עצור אם הכאב עולה"],
-            key=f"status_{index}"
+col1, col2, col3 = st.columns(3)
+with col1:
+    sets = st.number_input("סטים", min_value=1, max_value=10, value=3)
+with col2:
+    reps = st.number_input("חזרות", min_value=1, max_value=60, value=10)
+with col3:
+    hold = st.number_input("שמירה (שנ')", min_value=0, max_value=120, value=0)
+
+try:
+    default_rpe = int(float(row[COL_RPE])) if str(row[COL_RPE]).strip() not in ["", "nan"] else 5
+except:
+    default_rpe = 5
+
+rtl("רמת מאמץ — RPE (1 = קל מאוד, 10 = מקסימום)")
+rpe = st.slider("RPE", 1, 10, default_rpe, label_visibility="collapsed")
+
+# ============================================================
+# VAS + רמזור
+# ============================================================
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+rtl("רמת כאב — VAS", tag="h4", color="#2E86AB")
+rtl("0 = ללא כאב | 10 = כאב קיצוני", color="#888", size="0.85rem")
+vas = st.slider("VAS", 0, 10, 0, label_visibility="collapsed")
+tl_color, tl_label, tl_msg = traffic_light(vas)
+st.markdown(
+    f'<div class="info-box" style="background:{tl_color}">'
+    f'<strong>{tl_label}</strong><br>'
+    f'<span style="font-size:0.9rem">{tl_msg}</span>'
+    f'</div>',
+    unsafe_allow_html=True
+)
+
+# ============================================================
+# Load Management
+# ============================================================
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+rtl("ניהול עומס", tag="h4", color="#2E86AB")
+
+col1, col2 = st.columns(2)
+with col1:
+    duration = st.number_input("משך אימון (דקות)", min_value=5, max_value=120, value=30)
+with col2:
+    sessions_pw = st.number_input("פעמים בשבוע", min_value=1, max_value=7, value=3)
+
+session_load = rpe * duration
+weekly_load  = session_load * sessions_pw
+lc, ll = load_label(session_load)
+
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown(
+        f'<div class="load-box" style="background:{lc}">'
+        f'עומס יחידה<br><strong>{session_load} AU</strong></div>',
+        unsafe_allow_html=True
+    )
+with col2:
+    st.markdown(
+        f'<div class="load-box" style="background:#2E86AB">'
+        f'עומס שבועי<br><strong>{weekly_load} AU</strong></div>',
+        unsafe_allow_html=True
+    )
+rtl(ll, color=lc, size="0.88rem")
+
+# ============================================================
+# הוסף לתוכנית
+# ============================================================
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+if st.button("+ הוסף תרגיל לתוכנית", type="primary"):
+    st.session_state.exercise_cart[selected] = {
+        "שם": selected,
+        "אזור": row[COL_AREA],
+        "סוג": row[COL_TYPE],
+        "סטים": sets,
+        "חזרות": reps,
+        "שמירה": hold,
+        "RPE": rpe,
+        "VAS": vas,
+        "עומס": session_load,
+        "yt": yt,
+        "הוראות": row.get(COL_INST, ""),
+        "טיפ": row.get(COL_TIPS, ""),
+    }
+    st.success(f"{selected} נוסף לתוכנית")
+
+# ============================================================
+# תצוגת התוכנית + וואטסאפ
+# ============================================================
+if st.session_state.exercise_cart:
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    n = len(st.session_state.exercise_cart)
+    total_load = sum(d["עומס"] for d in st.session_state.exercise_cart.values())
+    rtl(f"התוכנית — {n} תרגילים | עומס כולל: {total_load} AU", tag="h4", color="#2E86AB")
+
+    for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
+        hold_str = f" | שמירה {d['שמירה']} שנ'" if d["שמירה"] > 0 else ""
+        yt_link  = (
+            f'<a href="{d["yt"]}" target="_blank" style="color:#2E86AB"> ▶ סרטון</a>'
+            if d["yt"] else ""
+        )
+        st.markdown(
+            f'<div class="cart-item">'
+            f'<strong>{i}. {d["שם"]}</strong> '
+            f'<span class="tag">{d["אזור"]}</span>'
+            f'<span class="tag">{d["סוג"]}</span><br>'
+            f'{d["סטים"]} סטים x {d["חזרות"]} חזרות{hold_str} | RPE: {d["RPE"]}'
+            f'{yt_link}'
+            f'</div>',
+            unsafe_allow_html=True
         )
 
-        if st.button("הוספה לסל", key=f"btn_{index}", use_container_width=True):
-            st.session_state.exercise_cart[index] = {
-                "name": row[COL_NAME], "sets": s, "reps": r, "rpe": rpe,
-                "vas": vas, "status": status, "instructions": row[COL_INST],
-                "link": row.get('YouTube_Link', '')
-            }
-            st.rerun()
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    rtl("שליחה לוואטסאפ", tag="h4", color="#2E86AB")
+
+    include_inst = st.checkbox("כלול הוראות ביצוע בהודעה", value=False)
+    include_tips = st.checkbox("כלול טיפים קליניים בהודעה", value=False)
+
+    if st.button("שלח תוכנית לוואטסאפ", type="primary"):
+        if not patient_name or not phone:
+            st.warning("נא למלא שם מטופל ומספר טלפון בראש הדף")
+        else:
+            lines = [
+                f"שלום {patient_name},",
+                f"תאריך: {today}",
+                "",
+                "התוכנית שלך:",
+                "",
+            ]
+            for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
+                hold_str = f", שמירה {d['שמירה']} שנ'" if d["שמירה"] > 0 else ""
+                lines.append(f"{i}. {d['שם']} ({d['אזור']})")
+                lines.append(f"   {d['סטים']} סטים x {d['חזרות']} חזרות{hold_str} | RPE: {d['RPE']}")
+                if include_inst and d["הוראות"]:
+                    lines.append(f"   הוראות: {d['הוראות']}")
+                if include_tips and d["טיפ"]:
+                    lines.append(f"   טיפ: {d['טיפ']}")
+                if d["yt"]:
+                    lines.append(f"   סרטון: {d['yt']}")
+                lines.append("")
+
+            lines += [
+                "--- הנחיות כאב ---",
+                "ירוק (VAS 0-3): המשך כרגיל",
+                "כתום (VAS 4-6): הפחת חזרות ב-50%",
+                "אדום (VAS 7+): עצור ופנה אלי",
+                "",
+                "--- צ'קליסט שבועי ---",
+                "לאחר כל אימון שלח לי:",
+            ]
+            for i, (name, d) in enumerate(st.session_state.exercise_cart.items(), 1):
+                lines.append(f"{i}. {d['שם']} — בוצע? כן / לא | כאב (0-10):")
+            lines += ["", "בהצלחה!", "נדב רונן | פיזיותרפיה"]
+
+            msg = "\n".join(lines)
+            url = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
+            st.markdown(
+                f'<a href="{url}" target="_blank">'
+                f'<button style="background:#25D366;color:white;padding:14px;'
+                f'border:none;border-radius:10px;width:100%;font-size:1.05rem;'
+                f'font-weight:bold;cursor:pointer;margin-top:8px">'
+                f'פתח בוואטסאפ</button></a>',
+                unsafe_allow_html=True
+            )
+
+    if st.button("נקה תוכנית"):
+        st.session_state.exercise_cart = {}
+        st.session_state.session_load_total = 0
+        st.rerun()
